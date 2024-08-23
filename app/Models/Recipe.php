@@ -6,6 +6,7 @@ use App\Traits\HasSeo;
 use App\Traits\Toggleable;
 use Astrotomic\Translatable\Contracts\Translatable as TranslatableContract;
 use Astrotomic\Translatable\Translatable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -81,5 +82,24 @@ class Recipe extends Model implements TranslatableContract
     public function nutrition()
     {
         return $this->hasOne(NutritionFact::class);
+    }
+    public function scopeSearch(Builder $query, string $search)
+    {
+        return $query->where(function ($query) use ($search) {
+            $query->whereHas('translations', function ($query) use ($search) {
+                $query->where('title', 'LIKE', "%{$search}%")
+                    ->orWhere('description', 'LIKE', "%{$search}%");
+            })
+            ->orWhereHas('tags', function ($query) use ($search) {
+                $query->whereHas('translations', function ($query) use ($search) {
+                    $query->where('name', 'LIKE', "%{$search}%");
+                });
+            })
+            ->orWhereHas('category', function ($query) use ($search) {
+                $query->whereHas('translations', function ($query) use ($search) {
+                    $query->where('name', 'LIKE', "%{$search}%");
+                });
+            });
+        });
     }
 }

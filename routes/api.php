@@ -33,8 +33,7 @@ require __DIR__.'\DashboardApis.php';
 
 require __DIR__.'\AuthApis.php';
 
-
-
+require __DIR__.'\FrontApis.php';
 
 Route::get('/test-locale', function () {
         // Log::info('Test route called');
