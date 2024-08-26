@@ -76,7 +76,7 @@ class RecipeController extends Controller
 
     public function show(Recipe $recipe)
     {
-        return response()->json($recipe->load(['translations', 'category', 'tags', 'user', 'seo'. 'nutrition']));
+        return response()->json($recipe->load(['translations', 'category', 'tags', 'user', 'seo', 'nutrition']));
     }
 
     public function update(RecipeRequest $request, SeoRequest $seoRequest, Recipe $recipe, NutritionFactRequest $nutritionRequest)

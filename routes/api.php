@@ -21,11 +21,6 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-
-Route::middleware('auth:api')->group(function () {
-    Route::post('{type}/{id}/toggle-like', [LikeableController::class, 'toggleLike']);
-    Route::delete('{type}/{id}/unlike', [LikeableController::class, 'unlike']);
-});
 // Route::post('/login', [AuthApiController::class, 'login']);
 // Route::middleware('auth:api')->post('/logout', [AuthApiController::class, 'logout']);
 
