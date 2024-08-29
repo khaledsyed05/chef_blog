@@ -21,6 +21,16 @@ class HomeController extends Controller
         $search = $request->query('search');
         $locale = $this->locale;
 
+        if (empty($search)) {
+            return response()->json([
+                'searchResults' => [
+                    'recipes' => [],
+                    'articles' => []
+                ],
+                'message' => 'No search term provided'
+            ]);
+        }
+
         $searchResults = [
             'recipes' => Recipe::with(['translations' => function ($query) use ($locale) {
                 $query->where('locale', $locale);

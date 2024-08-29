@@ -33,6 +33,10 @@ class Article extends Model implements TranslatableContract
     {
         return $this->belongsTo(User::class); // one user have (belongs to)many articles
     }
+    public function category()
+    {
+        return $this->belongsTo(Category::class); // many Recipes have (belongs to) one Category
+    }
     public function likes()
     {
         return $this->morphMany(Like::class, 'likeable');
@@ -54,9 +58,9 @@ class Article extends Model implements TranslatableContract
     }
 
     public function comments()
-    {
-        return $this->hasMany(Comment::class); // one article has many comments
-    }
+{
+    return $this->morphMany(Comment::class, 'commentable');
+}
     public function scopeSearch(Builder $query, string $search)
     {
         return $query->where(function ($query) use ($search) {

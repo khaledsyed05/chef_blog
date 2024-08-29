@@ -9,16 +9,16 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Comment extends Model
 {
     use HasFactory, SoftDeletes;
-    
-    protected $fillable = ['user_id', 'recipe_id', 'content'];
+
+    protected $fillable = ['user_id', 'content'];
+
+    public function commentable()
+    {
+        return $this->morphTo();
+    }
 
     public function user()
     {
         return $this->belongsTo(User::class);
-    }
-
-    public function recipe()
-    {
-        return $this->belongsTo(Recipe::class);
     }
 }

@@ -77,7 +77,7 @@ class Recipe extends Model implements TranslatableContract
 
     public function comments()
     {
-        return $this->hasMany(Comment::class); // Recipe has many comment 
+        return $this->morphMany(Comment::class, 'commentable');
     }
     public function nutrition()
     {

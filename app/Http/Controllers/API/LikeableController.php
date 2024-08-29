@@ -7,8 +7,23 @@ use Illuminate\Http\Request;
 use App\Models\Recipe;
 use App\Models\Article;
 use App\Models\Like;
+
 class LikeableController extends Controller
 {
+    public function index($type, $id)
+    {
+        $model = $this->getModel($type, $id);
+
+        if (!$model) {
+            return response()->json(['message' => 'Model not found'], 404);
+        }
+
+        return response()->json([
+            'likes_count' => $model->likesCount(),
+            'dislikes_count' => $model->dislikesCount(),
+            'user_like_status' => $this->getUserLikeStatus($model),
+        ]);
+    }
     public function toggleLike(Request $request, $type, $id)
     {
         $user = auth()->user();
@@ -26,7 +41,7 @@ class LikeableController extends Controller
                 'likeable_type' => get_class($model)
             ],
             ['is_like' => $isLike]
-        );  
+        );
 
         return response()->json([
             'message' => $isLike ? 'Liked successfully' : 'Disliked successfully',
@@ -45,9 +60,9 @@ class LikeableController extends Controller
         }
 
         $like = Like::where('user_id', $user->id)
-                    ->where('likeable_id', $model->id)
-                    ->where('likeable_type', get_class($model))
-                    ->first();
+            ->where('likeable_id', $model->id)
+            ->where('likeable_type', get_class($model))
+            ->first();
 
         if ($like) {
             $like->delete();
@@ -73,5 +88,23 @@ class LikeableController extends Controller
             default:
                 return null;
         }
+    }
+    private function getUserLikeStatus($model)
+    {
+        if (!auth()->check()) {
+            return null;
+        }
+
+        $user = auth()->user();
+        $like = Like::where('user_id', $user->id)
+                    ->where('likeable_id', $model->id)
+                    ->where('likeable_type', get_class($model))
+                    ->first();
+
+        if (!$like) {
+            return null;
+        }
+
+        return $like->is_like ? 'like' : 'dislike';
     }
 }
