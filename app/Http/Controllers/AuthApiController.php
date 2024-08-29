@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Auth\Events\Verified;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -16,57 +17,102 @@ class AuthApiController extends Controller
 {
     public function login(Request $request)
     {
+
         $data = $request->validate([
             'email' => 'required|email',
             'password' => 'required|min:8',
         ]);
-        $user = User::where('email', '=', $data['email'])->first();
-        if (!$user || !\Hash::check($data['password'], $user->password)) {
+
+        $user = User::where('email', $data['email'])->first();
+
+        if (!$user || !Hash::check($data['password'], $user->password)) {
             return response()->json([
-                'message' => 'invalid user',
+                'message' => 'Invalid credentials',
             ], 401);
         }
+
+        if (!$user->is_active) {
+            return response()->json([
+                'message' => 'You do not hane account, register to login',
+            ], 403);
+        }
+
+        if (!$user->hasVerifiedEmail()) {
+            return response()->json([
+                'message' => 'Please verify your email address before logging in.',
+            ], 403);
+        }
+
         $token = $user->createToken('Auth');
         return response()->json([
             'access_token' => $token->accessToken,
             'user'  => $user,
-            'refresh_token' => $token
         ], 200);
-    }
-    public function logout(Request $request)
-    {
-        $user = Auth::user();
-        $user->tokens()->delete();
-
-        return response()->json([
-            'message' => 'Successfully logged out'
-        ]);
     }
     public function register(Request $request)
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
+            'email' => 'required|string|email|max:255',
             'password' => 'required|string|min:8|confirmed',
         ]);
+
+        $existingUser = User::where('email', $request->email)->first();
+
+        if ($existingUser) {
+            if (!$existingUser->is_active) {
+                // Reactivate the account
+                $existingUser->name = $request->name; // Update name if it's changed
+                $existingUser->password = Hash::make($request->password);
+                $existingUser->is_active = true;
+                $existingUser->email_verified_at = null; // Reset email verification
+                $existingUser->verification_token = Str::random(64); // Generate new verification token
+                $existingUser->save();
+
+                // Send verification email
+                $existingUser->sendEmailVerificationNotification();
+
+                return response()->json([
+                    'message' => 'Account reactivated. Please check your email to verify your account.',
+                    'user' => $existingUser,
+                ], 200);
+            }
+            return response()->json(['message' => 'Email already in use'], 422);
+        }
 
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'is_active' => true,
             'verification_token' => Str::random(64),
         ]);
 
+        // Send verification email
         $user->sendEmailVerificationNotification();
 
-        $token = $user->createToken('AuthToken')->accessToken;
-
         return response()->json([
-            'message' => 'User registered successfully. Please check your email for verification.',
-            'access_token' => $token,
+            'message' => 'Registration successful. Please check your email to verify your account.',
+            'user' => $user,
         ], 201);
     }
-
+    public function logout(Request $request)
+{
+    $user = $request->user();
+    
+    if ($user) {
+        // Revoke the user's current token
+        $user->token()->revoke();
+        
+        return response()->json([
+            'message' => 'Successfully logged out'
+        ]);
+    }
+    
+    return response()->json([
+        'message' => 'No active session'
+    ], 404);
+}
     public function verifyEmail(Request $request)
     {
         $request->validate([
@@ -96,30 +142,30 @@ class AuthApiController extends Controller
     {
         $user = $request->user();
 
-          // Debug: Log the entire request
-    Log::info('Request:', $request->all());
+        // Debug: Log the entire request
+        Log::info('Request:', $request->all());
 
-    // Debug: Log the authorization header
-    Log::info('Authorization Header:', [$request->header('Authorization')]);
+        // Debug: Log the authorization header
+        Log::info('Authorization Header:', [$request->header('Authorization')]);
 
-    $user = auth('api')->user();
+        $user = auth('api')->user();
 
-    // Debug: Log user information
-    Log::info('User:', [$user]);
+        // Debug: Log user information
+        Log::info('User:', [$user]);
 
-    if (!$user) {
-        return response()->json(['message' => 'Unauthenticated.'], 401);
-    }
-    
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
         if ($user->hasVerifiedEmail()) {
             return response()->json(['message' => 'Email already verified'], 400);
         }
-    
+
         $user->verification_token = Str::random(64);
         $user->save();
-    
+
         $user->sendEmailVerificationNotification();
-    
+
         return response()->json(['message' => 'Verification link sent']);
     }
     public function deactivateAccount(Request $request)
@@ -137,8 +183,9 @@ class AuthApiController extends Controller
         // Revoke all tokens
         $user->tokens()->delete();
 
-        // Soft delete the user
-        $user->delete();
+        // Deactivate the account
+        $user->is_active = false;
+        $user->save();
 
         return response()->json(['message' => 'Account deactivated successfully']);
     }
@@ -147,21 +194,25 @@ class AuthApiController extends Controller
     {
         $request->validate([
             'email' => 'required|email',
-            'password' => 'required|string',
+            'new_password' => 'required|string|min:8|confirmed',
         ]);
 
-        $user = User::withTrashed()->where('email', $request->email)->first();
+        $user = User::where('email', $request->email)->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            return response()->json(['message' => 'Invalid credentials'], 401);
+        if (!$user) {
+            return response()->json(['message' => 'User not found'], 404);
         }
 
-        if (!$user->trashed()) {
+        if ($user->is_active) {
             return response()->json(['message' => 'Account is already active'], 400);
         }
 
-        $user->restore();
+        // Reactivate the account
+        $user->password = Hash::make($request->new_password);
+        $user->is_active = true;
+        $user->save();
 
+        // Generate a new token
         $token = $user->createToken('Auth')->accessToken;
 
         return response()->json([

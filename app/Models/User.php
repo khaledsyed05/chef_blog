@@ -27,6 +27,10 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
         'profile_picture',
         'verification_token',
+        'is_active'
+    ];
+    protected $casts = [
+        'is_active' => 'boolean',
     ];
     public function sendEmailVerificationNotification()
     {
