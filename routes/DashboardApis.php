@@ -7,6 +7,7 @@ use App\Http\Controllers\Dashboard\RecipeController;
 use App\Http\Controllers\Dashboard\TagController;
 use App\Http\Controllers\Dashboard\LanguageController;
 use App\Http\Controllers\Dashboard\SettingsController;
+use App\Http\Controllers\Dashboard\TranslationController;
 use App\Models\Tag;
 use Illuminate\Support\Facades\Route;
 
@@ -50,4 +51,11 @@ Route::group([
 
     Route::apiResource('languages', LanguageController::class);
     Route::patch('languages/{language}/toggle-active', [LanguageController::class, 'toggleActive']);
+
+    Route::get('translations/{locale}', [TranslationController::class, 'index']);
+    Route::post('translations', [TranslationController::class, 'store']);
+    Route::put('/translations/{key}/{locale}', [TranslationController::class, 'update']);
+    Route::delete('/translations/{key}/{locale}', [TranslationController::class, 'destroy']);
+    Route::post('/translations/{locale}/bulk', [TranslationController::class, 'bulkUpdate']);
+
 });

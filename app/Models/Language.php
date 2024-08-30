@@ -13,4 +13,8 @@ class Language extends Model
     protected $casts = [
         'is_active' => 'boolean',
     ];
+    public function translations()
+    {
+        return $this->hasMany(Translation::class, 'locale', 'code');
+    }
 }

@@ -1,5 +1,8 @@
 <?php
 
+use Illuminate\Support\Facades\Cache;
+
+
 if (!function_exists('settings')) {
     function settings($key = null, $default = null)
     {
@@ -8,5 +11,13 @@ if (!function_exists('settings')) {
             return $settings;
         }
         return $settings->get($key, $default);
+    }
+    if (!function_exists('cached_trans')) {
+        function cached_trans($key, $locale = null)
+        {
+            $locale = $locale ?: app()->getLocale();
+            $translations = Cache::get("translations.{$locale}", []);
+            return $translations[$key] ?? $key;
+        }
     }
 }
